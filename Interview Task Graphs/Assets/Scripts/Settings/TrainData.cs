@@ -1,7 +1,7 @@
 ﻿using Game.Interfaces;
 using UnityEngine;
 
-namespace Game
+namespace Game.Settings
 {
     /// <summary>
     /// 

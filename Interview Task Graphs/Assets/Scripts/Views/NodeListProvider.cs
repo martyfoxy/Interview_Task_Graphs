@@ -6,13 +6,13 @@ namespace Game.Views
     public class NodeListProvider : MonoBehaviour
     {
         [SerializeField]
-        private NodeView[] _nodeViews;
+        private NodeView[] nodeViews;
 
-        public NodeView[] NodeViews => _nodeViews;
+        public NodeView[] NodeViews => nodeViews;
 
         private void OnValidate()
         {
-            _nodeViews = FindObjectsOfType<NodeView>(true);
+            nodeViews = FindObjectsOfType<NodeView>(true);
         }
     }
 }
