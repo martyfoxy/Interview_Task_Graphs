@@ -1,12 +1,14 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 
 namespace Game.Views
 {
     /// <summary>
-    /// View of mine node
+    /// Represents mine
     /// </summary>
-    public class MineNodeView : MonoBehaviour
+    public class MineNodeView : NodeView
     {
-        
+        [SerializeField]
+        private TMP_Text multiplierText;
     }
 }

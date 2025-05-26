@@ -1,12 +1,14 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using UnityEngine;
 
 namespace Game.Views
 {
     /// <summary>
-    /// View of base node
+    /// Represents base
     /// </summary>
-    public class BaseNodeView : MonoBehaviour
+    public class BaseNodeView : NodeView
     {
-        
+        [SerializeField]
+        private TMP_Text multiplierText;
     }
 }

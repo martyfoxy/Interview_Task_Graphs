@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Game.Interfaces;
+using UnityEngine;
 
 namespace Game
 {
@@ -6,7 +7,7 @@ namespace Game
     /// 
     /// </summary>
     [CreateAssetMenu(menuName = "Create TrainData", fileName = "TrainData", order = 0)]
-    public class TrainData : ScriptableObject
+    public class TrainData : ScriptableObject, IResourceExtractor
     {
         [SerializeField, Range(1f, 1000f)]
         private float moveSpeed = 1f;
