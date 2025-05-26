@@ -1,9 +1,12 @@
 using UnityEngine;
 
-public class Startup : MonoBehaviour
+namespace Game
 {
-    void Start()
+    public class Startup : MonoBehaviour
     {
-        Debug.Log("Hello World!");
-    }
+        void Start()
+        {
+            Debug.Log("Hello World!");
+        }
+    }   
 }
