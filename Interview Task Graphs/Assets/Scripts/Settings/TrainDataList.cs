@@ -9,9 +9,7 @@ namespace Game.Settings
         [SerializeField]
         private List<TrainData> dataList;
 
-        public List<TrainData> DataList => dataList;
-
-        public TrainData GetRandom()
+        public TrainData GetRandomTrainData()
         {
             return dataList[Random.Range(0, dataList.Count)];
         }

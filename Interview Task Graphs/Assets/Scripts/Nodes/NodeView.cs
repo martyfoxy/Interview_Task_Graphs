@@ -3,44 +3,30 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Random = UnityEngine.Random;
 
-namespace Game.Views
+namespace Game.Nodes
 {
     public class NodeView : MonoBehaviour
     {
         [SerializeField]
         private List<Neighbour> neighbours = new();
-        
-        public bool HasNeighbour(NodeView other)
-        {
-            return neighbours.Exists(n => n.Node == other);
-        }
 
-        public void AddNeighbour(NodeView other, float distance)
-        {
-            neighbours.Add(new Neighbour { Node = other, Distance = distance });
-        }
-
-        public void SetNeighbourDistance(NodeView other, float distance)
-        {
-            neighbours.FirstOrDefault(x => x.Node == other)!.Distance = distance;
-        }
+        public virtual NodeType NodeType { get; } = NodeType.SimpleNode;
         
-        private void OnValidate()
+        public List<Neighbour> Neighbours => neighbours;
+        
+        public int ID
         {
-            if (Application.isPlaying) return;
-            
-            foreach (var neighbour in neighbours)
+            get
             {
-                if (neighbour.Node == null || neighbour.Node == this)
-                    continue;
+                if (_id == -1)
+                    _id = Random.Range(int.MinValue, int.MaxValue);
 
-                if (neighbour.Node.HasNeighbour(this))
-                    neighbour.Node.SetNeighbourDistance(this, neighbour.Distance);
-                else
-                    neighbour.Node.AddNeighbour(this, neighbour.Distance);
+                return _id;
             }
         }
+        private int _id = -1;
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()

@@ -1,18 +1,20 @@
-using System;
-using System.Linq;
 using Game.Settings;
 using Game.Train;
-using Game.Views;
+using Game.Nodes;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Game
 {
+    /// <summary>
+    /// Entry point of the game
+    /// </summary>
     public class Startup : MonoBehaviour
     {
+        private const int TrainsCount = 1;
+        
         [SerializeField]
-        private NodeListProvider nodeListProvider;
+        private Graph graph;
 
         [SerializeField]
         private Button startButton;
@@ -25,17 +27,21 @@ namespace Game
         private void Awake()
         {
             startButton.onClick.AddListener(OnStartClicked);
-            _trainSpawner =  new TrainSpawner(trainDataList);
+            _trainSpawner =  new TrainSpawner(trainDataList, graph);
         }
 
         private void OnStartClicked()
         {
             startButton.onClick.RemoveListener(OnStartClicked);
             startButton.gameObject.SetActive(false);
-            nodeListProvider.gameObject.SetActive(true);
+            graph.gameObject.SetActive(true);
             
-            
-            _trainSpawner.Spawn();
+            graph.Init();
+            for (var i = 0; i < TrainsCount; i++)
+            {
+                var train = _trainSpawner.Spawn();
+                train.Think();
+            }
         }
     }   
 }
