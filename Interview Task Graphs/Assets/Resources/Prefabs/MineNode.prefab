@@ -133,6 +133,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   neighbours: []
   multiplierText: {fileID: 4930569507310539354}
+  timeMultiplier: 1
 --- !u!1 &4007571461152798112
 GameObject:
   m_ObjectHideFlags: 0

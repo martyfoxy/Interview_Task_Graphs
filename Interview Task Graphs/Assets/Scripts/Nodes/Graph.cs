@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Game.General;
 using Game.Interfaces;
 using UnityEngine;
-using UnityEngine.Serialization;
-using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Game.Nodes
@@ -16,75 +13,45 @@ namespace Game.Nodes
         private List<EdgeData> edges = new();
         
         public IReadOnlyDictionary<int, NodeView> NodeViews => _nodeViews;
-        public IReadOnlyDictionary<NodeType, Dictionary<int, NodeView>>  NodeTypeRelations => _nodeTypeRelations;
         
-        private readonly HashSet<(int, int)> _processedEdges = new();
         private readonly Dictionary<int, NodeView> _nodeViews = new();
-        private readonly Dictionary<NodeType, Dictionary<int, NodeView>> _nodeTypeRelations = new();
-        
+        private readonly Dictionary<NodeType, List<NodeView>> _nodeTypeRelations = new();
+        private readonly Dictionary<int, List<Neighbour>> _adjacencyMap = new();
+        private readonly List<EdgeView> _edgeViews = new();
+
         public void Init()
         {
             edges.Clear();
-            _processedEdges.Clear();
             
             var allNodes = FindObjectsOfType<NodeView>(true);
 
             foreach (var nodeView in allNodes)
             {
                 RegisterNodeView(nodeView);
-                
-                var nodeId = nodeView.ID;
-                var nodePos = nodeView.transform.position;
-                
+
                 foreach (var neighbour in nodeView.Neighbours)
                 {
-                    if (neighbour.Node == null) continue;
-                    
-                    var otherId = neighbour.Node.ID;
-                    var otherPos = neighbour.Node.transform.position;
-                    var weight = neighbour.Distance;
-                    
-                    var orderedPair = nodeId < otherId ? (nodeId, otherId) : (otherId, nodeId);
-
-                    if (_processedEdges.Contains(orderedPair)) continue;
-                    
-                    var edge = new EdgeData(nodeId, otherId, nodePos, otherPos, weight);
-                        
+                    var edge = CreateEdge(nodeView, neighbour);
                     edges.Add(edge);
-                    _processedEdges.Add(orderedPair);
                 }
             }
-
-            var root = new GameObject
-            {
-                name = "Edges"
-            };
             
+            UpdateAdjacencyMap();
+            
+            var root = new GameObject { name = "Edges" };
             foreach (var edge in edges)
             {
-                SpawnLine(root.transform, edge);
+                var edgeView = SpawnEdgeView(root.transform, edge);
+                _edgeViews.Add(edgeView);
             }
             
             Debug.Log($"Graph initialized. Nodes: {allNodes.Length} Edges: {edges.Count}");
         }
-
         
-        
-        public NodeView GetRandomNodeOfType(NodeType nodeType)
-        {
-            if (!_nodeTypeRelations.TryGetValue(nodeType, out var entries))
-            {
-                Debug.LogError($"NodeViews with NodeType {nodeType} not found");
-                return null;
-            }
-
-            var nodeView = entries.Values.ElementAtOrDefault(Random.Range(0, entries.Count));
-            return nodeView;
-        }
-
         public NodeView GetRandomNode()
         {
-            return _nodeViews.Values.ElementAtOrDefault(Random.Range(0, _nodeViews.Count));
+            var nodeView = _nodeViews.Values.ElementAtOrDefault(Random.Range(0, _nodeViews.Count));
+            return nodeView;
         }
         
         public List<int> FindShortestPath(int startId, int endId)
@@ -95,20 +62,20 @@ namespace Game.Nodes
                 return new List<int>();
             }
 
-            var distances = new Dictionary<int, float>();
+            var distances = new Dictionary<int, int>();
             var previous = new Dictionary<int, int>();
             var visited = new HashSet<int>();
-            var queue = new PriorityQueue<int, float>();
+            var queue = new PriorityQueue<int, int>();
             
             //Init
             foreach (var id in _nodeViews.Keys)
             {
-                distances[id] = float.MaxValue;
+                distances[id] = int.MaxValue;
                 previous[id] = -1;
             }
 
-            distances[startId] = 0f;
-            queue.Enqueue(startId, 0f);
+            distances[startId] = 0;
+            queue.Enqueue(startId, 0);
 
             //Processing
             while (queue.Count > 0)
@@ -120,29 +87,26 @@ namespace Game.Nodes
                 if (!visited.Add(currentId))
                     continue;
 
-                //TODO: Optimize
-                foreach (var edge in edges)
+                if (!_adjacencyMap.TryGetValue(currentId, out var neighbours))
                 {
-                    var neighborId = -1;
-                    var weight = edge.Weight;
+                    Debug.LogError($"Couldn't find neighbours data in adjacency map for {currentId}");
+                    return new List<int>();
+                }
+                
+                foreach (var neighbour in neighbours)
+                {
+                    var neighbourId = neighbour.Node.ID;
 
-                    if (edge.StartNodeId == currentId)
-                        neighborId = edge.EndNodeId;
-                    else if (edge.EndNodeId == currentId)
-                        neighborId = edge.StartNodeId;
-                    else
+                    if (visited.Contains(neighbourId))
                         continue;
 
-                    if (visited.Contains(neighborId))
+                    var newDist = distances[currentId] + neighbour.Distance;
+                    if (newDist >= distances[neighbourId]) 
                         continue;
-
-                    var newDist = distances[currentId] + weight;
-                    if (newDist < distances[neighborId])
-                    {
-                        distances[neighborId] = newDist;
-                        previous[neighborId] = currentId;
-                        queue.Enqueue(neighborId, newDist);
-                    }
+                    
+                    distances[neighbourId] = newDist;
+                    previous[neighbourId] = currentId;
+                    queue.Enqueue(neighbourId, newDist);
                 }
             }
 
@@ -158,64 +122,156 @@ namespace Game.Nodes
 
             result.Reverse();
 
-            if (result[0] == startId) return result;
+            if (result[0] == startId) 
+                return result;
             
             Debug.LogError("Path couldn't be found");
             return new List<int>();
         }
-
-        public NodeView GetClosestNode(Vector3 worldPos, NodeType nodeType)
+        
+        public int FindNearest(int startBaseId, NodeType nodeType)
         {
-            return null;
+            if (!_nodeViews.ContainsKey(startBaseId))
+            {
+                Debug.LogError($"Node ID {startBaseId} not found");
+                return -1;
+            }
+
+            var distances = new Dictionary<int, int>();
+            var visited = new HashSet<int>();
+            var queue = new PriorityQueue<int, int>();
+
+            foreach (var id in _nodeViews.Keys)
+                distances[id] = int.MaxValue;
+
+            distances[startBaseId] = 0;
+            queue.Enqueue(startBaseId, 0);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (!visited.Add(current)) continue;
+
+                if (!_adjacencyMap.TryGetValue(current, out var neighbours))
+                    continue;
+
+                foreach (var neighbour in neighbours)
+                {
+                    if (neighbour.Node == null) continue;
+
+                    var neighborId = neighbour.Node.ID;
+                    if (visited.Contains(neighborId)) continue;
+
+                    var newDist = distances[current] + neighbour.Distance;
+                    if (newDist >= distances[neighborId]) continue;
+                    
+                    distances[neighborId] = newDist;
+                    queue.Enqueue(neighborId, newDist);
+                }
+            }
+
+            if (!_nodeTypeRelations.TryGetValue(nodeType, out var nodeViews))
+            {
+                Debug.LogError($"No node found with type {nodeType}");
+                return -1;
+            }
+
+            var nearestNodeId = -1;
+            var minDistance = int.MaxValue;
+
+            foreach (var nodeView in nodeViews)
+            {
+                if (!distances.TryGetValue(nodeView.ID, out var dist) || dist >= minDistance) continue;
+                
+                minDistance = dist;
+                nearestNodeId = nodeView.ID;
+            }
+
+            if (nearestNodeId == -1)
+                Debug.LogWarning("No reachable nodes found");
+
+            return nearestNodeId;
         }
         
         private void RegisterNodeView(NodeView nodeView)
         {
             _nodeViews.Add(nodeView.ID, nodeView);
-                
-            if (_nodeTypeRelations.TryGetValue(nodeView.NodeType, out var entries))
-                entries.Add(nodeView.ID, nodeView);
+
+            if (_nodeTypeRelations.TryGetValue(nodeView.NodeType, out var nodeViews))
+                nodeViews.Add(nodeView);
             else
-                _nodeTypeRelations.Add(nodeView.NodeType, new Dictionary<int, NodeView> { { nodeView.ID, nodeView } });
+                _nodeTypeRelations.Add(nodeView.NodeType, new List<NodeView> { nodeView });
+
+            switch (nodeView.NodeType)
+            {
+                case NodeType.Base:
+                {
+                    var baseNodeView = nodeView as BaseNodeView;
+
+                    var baseNode = new BaseNode(Random.Range(1f, 10f));
+                    baseNodeView?.Setup(baseNode);
+                    break;
+                }
+                case NodeType.Mine:
+                {
+                    var mineNodeView = nodeView as MineNodeView;
+
+                    var mineNode = new MineNode(Random.Range(0.1f, 1f));
+                    mineNodeView?.Setup(mineNode);
+                    break;
+                }
+            }
+        }
+
+        private EdgeData CreateEdge(NodeView startNode, Neighbour neighbour)
+        {
+            var nodeId = startNode.ID;
+            var nodePos = startNode.transform.position;
+            
+            if (neighbour.Node == null) return null;
+                    
+            var otherId = neighbour.Node.ID;
+            var otherPos = neighbour.Node.transform.position;
+            var weight = neighbour.Distance;
+            
+            var edge = new EdgeData(nodeId, otherId, nodePos, otherPos, weight);
+            return edge;
         }
         
-        private void SpawnLine(Transform root, EdgeData edgeData)
+        private EdgeView SpawnEdgeView(Transform root, EdgeData edgeData)
         {
             var prefab = Resources.Load<EdgeView>("Prefabs/Edge");
             var instance = Instantiate(prefab, root);
             instance.name = $"Edge_{edgeData.ID}";
-            
             instance.Setup(edgeData);
+
+            return instance;
         }
 
-        [Serializable]
-        public class EdgeData : IEdgeData
+        private void UpdateAdjacencyMap()
         {
-            [HideInInspector]
-            public int ID;
+            _adjacencyMap.Clear();
             
-            [HideInInspector]
-            public int StartNodeId;
-            
-            [HideInInspector]
-            public Vector3 StartPos;
-            
-            [HideInInspector]
-            public Vector3 EndPos;
-            
-            [HideInInspector]
-            public int EndNodeId;
-            
-            public float Weight { get; private set; }
-
-            public EdgeData(int startNodeID, int endNodeID, Vector3 startPos, Vector3 endPos, float weight)
+            foreach (var (nodeId, nodeView) in _nodeViews)
             {
-                ID = Random.Range(int.MinValue, int.MaxValue);
-                StartNodeId = startNodeID;
-                EndNodeId = endNodeID;
-                StartPos = startPos;
-                EndPos = endPos;
-                Weight = weight;
+                foreach (var neighbour in nodeView.Neighbours)
+                {
+                    if (neighbour.Node == null) continue;
+                    
+                    var neighbourId = neighbour.Node.ID;
+
+                    if (!_adjacencyMap.TryGetValue(nodeId, out var directList))
+                        _adjacencyMap[nodeId] = directList = new List<Neighbour>();
+                    directList.Add(neighbour);
+
+                    if (!_adjacencyMap.TryGetValue(neighbourId, out var indirectList))
+                        _adjacencyMap[neighbourId] = indirectList = new List<Neighbour>();
+
+                    if (indirectList.All(n => n.Node.ID != nodeView.ID))
+                    {
+                        indirectList.Add(new Neighbour { Node = nodeView, Distance = neighbour.Distance });
+                    }
+                }   
             }
         }
     }

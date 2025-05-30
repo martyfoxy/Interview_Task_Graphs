@@ -13,9 +13,9 @@ namespace Game.Nodes
         private TMP_Text multiplierText;
 
         [SerializeField]
-        [Range(1f, 5f)]
+        [Range(0.01f, 1f)]
         [Header("Changeable parameters")]
-        private float timeMultiplier;
+        private float timeMultiplier = 1f;
         
         public float TimeMultiplier => timeMultiplier;
 
@@ -24,7 +24,7 @@ namespace Game.Nodes
         public override void Setup(IResourceProducer data)
         {
             timeMultiplier = data.TimeMultiplier;
-            multiplierText.text = data.TimeMultiplier.ToString("F1");
+            multiplierText.text = $"x{data.TimeMultiplier:F1}";
             //TODO: Сделать обновление UI при изменении 
         }
     }

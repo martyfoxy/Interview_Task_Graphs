@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b757daf13a24046a52f3166ee84155d, type: 3}
   m_Name: TrainData1
   m_EditorClassIdentifier: 
-  moveSpeed: 200
-  baseExtractionSpeed: 20
+  moveSpeed: 5
+  baseExtractionSpeed: 5.3

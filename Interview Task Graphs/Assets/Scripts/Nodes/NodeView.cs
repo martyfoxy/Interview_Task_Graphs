@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -11,7 +10,7 @@ namespace Game.Nodes
     {
         [SerializeField]
         private List<Neighbour> neighbours = new();
-
+        
         public virtual NodeType NodeType { get; } = NodeType.SimpleNode;
         
         public List<Neighbour> Neighbours => neighbours;
@@ -43,17 +42,10 @@ namespace Game.Nodes
 
                 Gizmos.DrawLine(transform.position, neighbour.Node.transform.position);
                 
-                Vector3 mid = (transform.position + neighbour.Node.transform.position) * 0.5f;
-                UnityEditor.Handles.Label(mid, neighbour.Distance.ToString("F1"));
+                var mid = (transform.position + neighbour.Node.transform.position) * 0.5f;
+                UnityEditor.Handles.Label(mid, neighbour.Distance.ToString());
             }
         }
 #endif
-    }
-
-    [Serializable]
-    public class Neighbour
-    {
-        public NodeView Node;
-        public float Distance = 1f;
     }
 }

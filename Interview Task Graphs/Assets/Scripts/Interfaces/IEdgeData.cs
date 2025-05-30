@@ -2,6 +2,6 @@
 {
     public interface IEdgeData
     {
-        float Weight { get; }
+        int Weight { get; }
     }
 }

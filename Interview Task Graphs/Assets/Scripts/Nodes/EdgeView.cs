@@ -13,11 +13,11 @@ namespace Game.Nodes
         private LineRenderer lineRenderer;
 
         [SerializeField]
-        private float weight;
+        private int weight;
         
-        public float Weight => weight;
+        public int Weight => weight;
 
-        public void Setup(Graph.EdgeData edgeData)
+        public void Setup(EdgeData edgeData)
         {
             weight = edgeData.Weight;
             
@@ -29,7 +29,7 @@ namespace Game.Nodes
             lineRenderer.SetPosition(1, endPos);
             
             //TODO: Update text according to current weight
-            weightText.text = weight.ToString("F1");
+            weightText.text = weight.ToString();
             weightText.transform.position = (startPos + endPos ) / 2;
         }
     }

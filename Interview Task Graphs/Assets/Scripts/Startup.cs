@@ -22,12 +22,14 @@ namespace Game
         [SerializeField]
         private TrainDataList trainDataList;
 
+        private GameState _gameState;
         private TrainSpawner _trainSpawner;
         
         private void Awake()
         {
             startButton.onClick.AddListener(OnStartClicked);
-            _trainSpawner =  new TrainSpawner(trainDataList, graph);
+            _gameState = new GameState();
+            _trainSpawner =  new TrainSpawner(trainDataList, graph, _gameState);
         }
 
         private void OnStartClicked()
@@ -40,8 +42,8 @@ namespace Game
             for (var i = 0; i < TrainsCount; i++)
             {
                 var train = _trainSpawner.Spawn();
-                train.Think();
+                StartCoroutine(train.Think());
             }
         }
-    }   
+    }
 }
