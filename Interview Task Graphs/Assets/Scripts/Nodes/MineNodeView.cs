@@ -1,4 +1,5 @@
-﻿using Game.Interfaces;
+﻿using Game.General;
+using Game.Interfaces;
 using TMPro;
 using UnityEngine;
 
@@ -13,19 +14,28 @@ namespace Game.Nodes
         private TMP_Text multiplierText;
 
         [SerializeField]
-        [Range(0.01f, 1f)]
+        [Range(Const.MineTimeMultiplierMin, Const.MineTimeMultiplierMax)]
         [Header("Changeable parameters")]
-        private float timeMultiplier = 1f;
+        private float timeMultiplier = Const.MineTimeMultiplierDefault;
         
         public float TimeMultiplier => timeMultiplier;
 
         public override NodeType NodeType => NodeType.Mine;
 
-        public override void Setup(IResourceProducer data)
+        protected override void SetupImpl()
         {
-            timeMultiplier = data.TimeMultiplier;
-            multiplierText.text = $"x{data.TimeMultiplier:F1}";
-            //TODO: Сделать обновление UI при изменении 
+            timeMultiplier = Data.TimeMultiplier;
+            multiplierText.text = $"x{timeMultiplier:F1}";
         }
+        
+#if UNITY_EDITOR
+        protected override void OnValidate()
+        {
+            base.OnValidate();
+            
+            if (!Application.isPlaying || Data == null) return;
+            multiplierText.text = $"x{timeMultiplier:F1}";
+        }
+#endif
     }
 }

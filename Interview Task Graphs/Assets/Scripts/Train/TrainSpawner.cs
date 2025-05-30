@@ -1,4 +1,5 @@
-﻿using Game.Settings;
+﻿using Game.General;
+using Game.Settings;
 using Game.Nodes;
 using Train;
 using UnityEngine;
@@ -9,25 +10,25 @@ namespace Game.Train
     {
         private readonly TrainDataList _trainDataList;
         private readonly Graph _graph;
-        private readonly GameState _gameState;
+        private readonly ResourcesManager _resourcesManager;
 
-        public TrainSpawner(TrainDataList trainDataList, Graph graph, GameState gameState)
+        public TrainSpawner(TrainDataList trainDataList, Graph graph, ResourcesManager resourcesManager)
         {
             _trainDataList = trainDataList;
             _graph = graph;
-            _gameState = gameState;
+            _resourcesManager = resourcesManager;
         }
 
         public TrainView Spawn()
         {
-            var prefab = Resources.Load<TrainView>("Prefabs/Train");
+            var prefab = Resources.Load<TrainView>(Const.TrainViewPrefabPath);
 
             var initialNode = _graph.GetRandomNode();
             
             var instance = Object.Instantiate(prefab, initialNode.transform.position, Quaternion.identity);
 
             var trainData = _trainDataList.GetRandomTrainData();
-            instance.Setup(trainData, initialNode, _graph, _gameState);
+            instance.Setup(trainData, initialNode, _graph, _resourcesManager);
 
             return instance;
         }

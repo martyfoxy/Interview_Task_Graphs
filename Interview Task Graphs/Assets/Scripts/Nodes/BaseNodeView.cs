@@ -1,4 +1,5 @@
-﻿using Game.Interfaces;
+﻿using Game.General;
+using Game.Interfaces;
 using TMPro;
 using UnityEngine;
 
@@ -13,19 +14,28 @@ namespace Game.Nodes
         private TMP_Text multiplierText;
         
         [SerializeField]
-        [Range(1f, 5f)]
+        [Range(Const.BaseStorageMultiplierMin, Const.BaseStorageMultiplierMax)]
         [Header("Changeable parameters")]
-        private float storageMultiplier;
+        private float storageMultiplier = Const.BaseStorageMultiplierDefault;
 
         public float StorageMultiplier => storageMultiplier;
 
         public override NodeType NodeType => NodeType.Base;
 
-        public override void Setup(IResourceConsumer data)
+        protected override void SetupImpl()
         {
-            storageMultiplier = data.StorageMultiplier;
-            multiplierText.text = data.StorageMultiplier.ToString("F1");
-            //TODO: Сделать обновление UI при изменении 
+            storageMultiplier = Data.StorageMultiplier;
+            multiplierText.text = $"x{storageMultiplier:F1}";
         }
+
+#if UNITY_EDITOR
+        protected override void OnValidate()
+        {
+            base.OnValidate();
+            
+            if (!Application.isPlaying || Data == null) return;
+            multiplierText.text = $"x{storageMultiplier:F1}";
+        }
+#endif
     }
 }

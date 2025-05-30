@@ -22,23 +22,23 @@ namespace Train
         private GameObject resourceMarker;
 
         [SerializeField]
-        [Range(1f, 1000f)]
+        [Range(Const.TrainSpeedMin, Const.TrainSpeedMax)]
         [Header("Changeable parameters")]
-        private float moveSpeed;
+        private float moveSpeed = Const.TrainSpeedDefault;
 
         [SerializeField]
-        [Range(1f, 100f)]
-        private float baseExtractionSpeed;
+        [Range(Const.TrainExtractionSpeedMin, Const.TrainExtractionSpeedMax)]
+        private float baseExtractionSpeed = Const.TrainExtractionSpeedDefault;
 
         private Graph _graph;
-        private GameState _gameState;
+        private ResourcesManager _resourcesManager;
         private int _currentNodeId;
         private List<int> _currentPath;
 
         public float MoveSpeed =>  moveSpeed;
         public float BaseExtractionSpeed => baseExtractionSpeed;
         
-        public void Setup(IResourceExtractor context, NodeView initialNode, Graph graph, GameState gameState)
+        public void Setup(IResourceExtractor context, NodeView initialNode, Graph graph, ResourcesManager resourcesManager)
         {
             extractionMarker.SetActive(false);
             resourceMarker.SetActive(false);
@@ -48,25 +48,86 @@ namespace Train
             
             _currentNodeId = initialNode.ID;
             _graph = graph;
-            _gameState = gameState;
+            _resourcesManager = resourcesManager;
         }
 
         public IEnumerator Think()
         {
             while (true)
             {
-                var nearestMineId = _graph.FindNearest(_currentNodeId, NodeType.Mine);
-                Debug.Log(">>> Moving to nearest Mine: " + nearestMineId);
-                yield return MovingToMine(_currentNodeId, nearestMineId);
-            
-                Debug.Log(">>> Extracting...");
-                yield return ExtractingResource(nearestMineId);
-                Debug.Log(">>> Extracting completed");
-            
-                var nearestBaseId = _graph.FindNearest(_currentNodeId, NodeType.Base);
-                Debug.Log(">>> Moving to nearest Base: " + nearestBaseId);
-                yield return MovingToBaseWithResource(_currentNodeId, nearestBaseId);   
+                var bestMine = FindBestMine(_currentNodeId);
+                yield return MovingToMine(_currentNodeId, bestMine);
+                
+                yield return ExtractingResource(bestMine);
+
+                var bestBase = FindBestBase(bestMine);
+                yield return MovingToBaseWithResource(bestMine, bestBase);   
             }
+        }
+
+        private int FindBestMine(int fromNodeId)
+        {
+            if (!_graph.TryRunDijkstra(fromNodeId, out var distances, out _))
+                return -1;
+
+            if (!_graph.NodeTypeRelations.TryGetValue(NodeType.Mine, out var mines))
+            {
+                Debug.LogError("No mines found in graph");
+                return -1;
+            }
+
+            var bestMineId = -1;
+            var bestValue = float.MaxValue;
+
+            foreach (var mineNode in mines)
+            {
+                if (mineNode is not MineNodeView mine) continue;
+
+                if (!distances.TryGetValue(mine.ID, out int distance)) continue;
+
+                var adjustedMiningTime = baseExtractionSpeed * mine.TimeMultiplier;
+                var cost = distance + adjustedMiningTime;
+
+                if (cost < bestValue)
+                {
+                    bestValue = cost;
+                    bestMineId = mine.ID;
+                }
+            }
+
+            return bestMineId;
+        }
+
+        private int FindBestBase(int fromNodeId)
+        {
+            if (!_graph.TryRunDijkstra(fromNodeId, out var distances, out _))
+                return -1;
+
+            if (!_graph.NodeTypeRelations.TryGetValue(NodeType.Base, out var bases))
+            {
+                Debug.LogError("No bases found in graph");
+                return -1;
+            }
+
+            var bestBaseId = -1;
+            var bestValue = float.MaxValue;
+
+            foreach (var baseNode in bases)
+            {
+                if (baseNode is not BaseNodeView baseView) continue;
+
+                if (!distances.TryGetValue(baseView.ID, out var distance)) continue;
+
+                var cost = distance / Mathf.Max(baseView.StorageMultiplier, 0.01f);
+
+                if (cost < bestValue)
+                {
+                    bestValue = cost;
+                    bestBaseId = baseView.ID;
+                }
+            }
+
+            return bestBaseId;
         }
 
         private IEnumerator MovingToMine(int fromNodeId, int mineId)
@@ -95,11 +156,10 @@ namespace Train
             extractionMarker.SetActive(true);
             resourceMarker.SetActive(false);
 
-            var resourceProducer = targetNode as IResourceProducer;
-            if (resourceProducer == null)
+            if (targetNode is not IResourceProducer resourceProducer)
                 yield break;
 
-            yield return new WaitForSeconds(baseExtractionSpeed / resourceProducer.TimeMultiplier);
+            yield return new WaitForSeconds(baseExtractionSpeed * resourceProducer.TimeMultiplier);
 
             extractionMarker.SetActive(false);
             resourceMarker.SetActive(true);
@@ -113,8 +173,7 @@ namespace Train
             extractionMarker.SetActive(false);
             resourceMarker.SetActive(true);
 
-            var resourceConsumer = targetNode as IResourceConsumer;
-            if (resourceConsumer == null)
+            if (targetNode is not IResourceConsumer resourceConsumer)
                 yield break;
             
             _currentPath = _graph.FindShortestPath(fromNodeId, baseNodeId);
@@ -134,8 +193,8 @@ namespace Train
 
             _currentNodeId = baseNodeId;
             
-            var score = (int)(1 * resourceConsumer.StorageMultiplier);
-            _gameState.AddScore(score);
+            var score = 1f * resourceConsumer.StorageMultiplier;
+            _resourcesManager.AddScore(score);
         }
         
         private IEnumerator MoveToPosition(Vector3 targetPosition)

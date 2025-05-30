@@ -1,4 +1,5 @@
-﻿using Game.Interfaces;
+﻿using Game.General;
+using Game.Interfaces;
 using TMPro;
 using UnityEngine;
 
@@ -28,9 +29,12 @@ namespace Game.Nodes
             lineRenderer.SetPosition(0, startPos);
             lineRenderer.SetPosition(1, endPos);
             
-            //TODO: Update text according to current weight
+            var t = Mathf.InverseLerp(Const.MinDistance, Const.MaxDistance, weight);
+            var edgeColor = Color.Lerp(Color.green, Color.red, t);
+            lineRenderer.startColor = lineRenderer.endColor = edgeColor;
+            
             weightText.text = weight.ToString();
-            weightText.transform.position = (startPos + endPos ) / 2;
+            weightText.transform.position = (startPos + endPos ) * 0.5f;
         }
     }
 }
